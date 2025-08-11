@@ -1,0 +1,24 @@
+# Core
+pandas
+numpy
+
+# UI
+streamlit
+
+# Database
+sqlite-utils
+
+# Visualization
+matplotlib
+plotly
+
+# NLP (for Week 2 Journal Analyzer)
+nltk
+spacy
+
+# Web Scraping (for Week 3 Awareness Engine)
+beautifulsoup4
+requests
+
+# Utils
+python-dateutil
