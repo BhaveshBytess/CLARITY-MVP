@@ -69,7 +69,7 @@ streamlit run ui/app.py
 
 *(Add after Week 1 completion)*
 Example:
-![Goal Tracker Screenshot](docs/goal_tracker.png)
+![Goal Tracker Screenshot]
 
 ---
 
