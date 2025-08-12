@@ -15,6 +15,8 @@ sys.path.insert(0, os.path.join(BASE_DIR, "scripts"))
 # backend functions
 from goal_tracker import init_db, log_hours, get_all_logs, get_weekly_avg, check_targets
 from suggestion_engine import generate_suggestions
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Ensure DB exists and folder is present
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -22,6 +24,24 @@ init_db()
 
 # Streamlit page config
 st.set_page_config(page_title="Clarity — Self-Growth Copilot (MVP)", layout="centered")
+st.markdown(
+    """
+    <style>
+    .report-card {
+        background: #ffffff;
+        padding: 10px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        margin-bottom: 12px;
+    }
+    /* Narrow layout max width */
+    .main .block-container {
+        max-width: 900px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 st.title("🔵 Clarity — Self-Growth Copilot (MVP)")
 
 # Sidebar nav
@@ -58,21 +78,48 @@ elif choice == "Log Hours":
 
 elif choice == "Weekly Report":
     st.subheader("Weekly Averages & Target Status")
+
+    # Structured status
     status = check_targets()  # structured dict
-    # Convert to dataframe for nice display
     rows = []
     for p, d in status.items():
         rows.append({"Pillar": p, "Avg hrs/day": d["avg"], "Target hrs/day": d["target"], "Status": d["status"]})
-    df = pd.DataFrame(rows)
-    st.table(df)
+    df_status = pd.DataFrame(rows)
+    st.table(df_status)
 
-    # show bar chart for weekly totals (sum of last 7 days)
-    all_rows = get_all_logs()
-    df_logs = df_from_db_rows(all_rows)
-    if not df_logs.empty:
-        chart_df = df_logs.groupby("pillar")["hours"].sum().reset_index()
-        chart_df.columns = ["Pillar", "Hours (last 7 days)"]
-        st.bar_chart(chart_df.set_index("Pillar"))
+    # Weekly totals bar chart (last 7 days)
+    from goal_tracker import get_weekly_totals
+    totals = get_weekly_totals()  # dict {pillar: total_hours_last_7_days}
+    tot_df = pd.DataFrame(list(totals.items()), columns=["Pillar", "Hours (last 7 days)"])
+    fig = px.bar(tot_df, x="Pillar", y="Hours (last 7 days)",
+                 text="Hours (last 7 days)",
+                 title="Weekly total hours per pillar",
+                 labels={"Hours (last 7 days)": "Hours (7 days)"})
+    fig.update_traces(textposition='outside')
+    fig.update_layout(yaxis=dict(title="Hours (7-day total)"), xaxis=dict(title="Pillar"), uniformtext_minsize=8, uniformtext_mode='hide')
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Percent progress toward daily target (avg/target * 100) as horizontal bars
+    percent_rows = []
+    for p, d in status.items():
+        pct = 0.0
+        if d["target"] > 0:
+            pct = min(150, round((d["avg"] / d["target"]) * 100, 1))  # cap at 150%
+        percent_rows.append({"Pillar": p, "PercentOfDailyTarget": pct})
+
+    pct_df = pd.DataFrame(percent_rows)
+    # Horizontal bar chart
+    fig2 = px.bar(pct_df, x="PercentOfDailyTarget", y="Pillar", orientation='h',
+                  text="PercentOfDailyTarget",
+                  title="Daily progress vs target (% of daily target)")
+    fig2.update_layout(xaxis=dict(title="% of daily target (100% = on target)"), yaxis=dict(categoryorder="total ascending"))
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # Optional: show progress with Streamlit's progress widget too (simple)
+    st.markdown("### Quick progress bars")
+    for idx, r in pct_df.iterrows():
+        st.write(f"**{r['Pillar']}** — {r['PercentOfDailyTarget']}% of daily target")
+        st.progress(int(r['PercentOfDailyTarget'] if r['PercentOfDailyTarget'] <= 100 else 100))
 
 elif choice == "Suggestions":
     st.subheader("Actionable Suggestions (Today)")

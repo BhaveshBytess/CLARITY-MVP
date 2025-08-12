@@ -123,3 +123,23 @@ if __name__ == "__main__":
     from pprint import pprint
     pprint(check_targets())
 
+
+def get_weekly_totals():
+    """
+    Returns dict {pillar: total_hours_over_last_7_days}
+    Missing days count as 0.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    seven_days = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
+    totals = {}
+    for pillar in TARGETS.keys():
+        total = 0.0
+        for d in seven_days:
+            c.execute("SELECT SUM(hours) FROM pillar_logs WHERE date = ? AND pillar = ?", (d, pillar))
+            row = c.fetchone()
+            total += row[0] if (row and row[0] is not None) else 0.0
+        totals[pillar] = round(total, 2)
+    conn.close()
+    return totals
+
