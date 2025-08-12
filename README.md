@@ -69,32 +69,61 @@ requirements.txt
 
 ## **Getting Started**
 
-### 1. Clone the Repository
+---
 
+````markdown
+## 🏁 Run Locally (Quickstart)
+
+1. Clone and install:
 ```bash
 git clone https://github.com/your-username/Clarity-MVP.git
 cd Clarity-MVP
-```
-
-### 2. Install Dependencies
-
-```bash
 pip install -r requirements.txt
-```
+````
 
-### 3. Run the App
+2. (Optional) Prepare deterministic test data:
 
 ```bash
-streamlit run ui/app.py
+python clarity/scripts/test_insert_fake_data.py
 ```
+
+3. Run the app:
+
+```bash
+streamlit run clarity/ui/app.py
+```
+
+4. Open the Streamlit link in your browser (usually [http://localhost:8501](http://localhost:8501)).
+
+   * **Log Hours** — Add today's hours for Dev / DSA / GATE.
+   * **Weekly Report** — View averages, totals, and progress charts.
+   * **Suggestions** — See the daily actionable suggestion.
 
 ---
 
-## **Screenshots**
+## 📸 Screenshots (proof)
 
-*(Add after Week 1 completion)*
-Example:
-![Goal Tracker Screenshot]
+*These were captured on a local run of Clarity MVP.*
+
+**Home Screen**
+![Home Screen](clarity/docs/home_Screen.png)
+
+**Log Hours**
+![Goal Tracker](clarity/docs/goal_tracker.png)
+
+**Weekly Report — table + bar chart**
+![Weekly Report](clarity/docs/weekly_report.png)
+![Weekly Report](clarity/docs/bar_graph.png)
+
+**Daily progress vs target & Quick bars**
+![Progress Bars](clarity/docs/progress_bars.png)
+
+**Actionable Suggestions**
+![Suggestions](clarity/docs/suggestions.png)
+
+**View Logs (raw entries)**
+![View Logs](clarity/docs/view_logs.png)
+![View Logs](clarity/docs/view_avglogs.png)
 
 ---
 
