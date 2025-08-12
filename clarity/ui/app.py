@@ -1,96 +1,100 @@
+# clarity/ui/app.py
+import os
 import streamlit as st
 import pandas as pd
-import sqlite3
 from datetime import datetime
 
-# =====================
-# DB FUNCTIONS
-# =====================
-DB_PATH = "clarity/data/clarity.db"
+# ensure project-root relative paths work
+BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)))  # clarity/
+DB_PATH = os.path.join(BASE_DIR, "data", "clarity.db")
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS pillar_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            pillar TEXT,
-            hours REAL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# add clarity/scripts to path if needed (so we can import modules)
+import sys
+sys.path.insert(0, os.path.join(BASE_DIR, "scripts"))
 
-def log_hours(pillar, hours):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO pillar_logs (date, pillar, hours) VALUES (?, ?, ?)",
-              (datetime.now().strftime("%Y-%m-%d"), pillar, hours))
-    conn.commit()
-    conn.close()
+# backend functions
+from goal_tracker import init_db, log_hours, get_all_logs, get_weekly_avg, check_targets
+from suggestion_engine import generate_suggestions
 
-def get_weekly_data():
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM pillar_logs", conn)
-    conn.close()
-    return df
+# Ensure DB exists and folder is present
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+init_db()
 
-# =====================
-# SUGGESTION ENGINE (Week 1 basic rule-based)
-# =====================
-TARGETS = {"Dev": 1.5, "DSA": 1, "GATE": 1}  # hours/day
+# Streamlit page config
+st.set_page_config(page_title="Clarity — Self-Growth Copilot (MVP)", layout="centered")
+st.title("🔵 Clarity — Self-Growth Copilot (MVP)")
 
-def generate_suggestions(df):
-    suggestions = []
-    if df.empty:
-        return ["No data yet. Start logging your hours today!"]
+# Sidebar nav
+menu = ["Home", "Log Hours", "Weekly Report", "Suggestions", "View Logs"]
+choice = st.sidebar.selectbox("Navigate", menu)
 
-    last_7 = df.tail(7)
-    avg_hours = last_7.groupby("pillar")["hours"].mean().to_dict()
+def df_from_db_rows(rows):
+    if not rows:
+        return pd.DataFrame(columns=["id", "date", "pillar", "hours"])
+    return pd.DataFrame(rows, columns=["id", "date", "pillar", "hours"])
 
-    for pillar, target in TARGETS.items():
-        if avg_hours.get(pillar, 0) < target:
-            suggestions.append(f"⚠ {pillar} below target! Spend at least {target - avg_hours.get(pillar, 0):.1f} more hours today.")
-        else:
-            suggestions.append(f"✅ {pillar} on track! Keep it up.")
+if choice == "Home":
+    st.subheader("Welcome")
+    st.markdown(
+        """
+        **Clarity** helps you track your Dev / DSA / GATE hours and gives one simple action each day.
+        Use **Log Hours** to add today's work, then visit **Weekly Report** and **Suggestions**.
+        """
+    )
+    st.info("Built for hostel + limited time. Keep it simple, ship daily.")
 
-    return suggestions
+elif choice == "Log Hours":
+    st.subheader("Log Today's Hours")
+    with st.form("log_form"):
+        pillar = st.selectbox("Pillar", ["Dev", "DSA", "GATE"])
+        hours = st.number_input("Hours spent (0.0 - 12.0)", min_value=0.0, max_value=12.0, step=0.25)
+        submitted = st.form_submit_button("Log")
+        if submitted:
+            log_hours(pillar, float(hours))
+            st.success(f"Logged {hours} hours for {pillar} at {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-# =====================
-# STREAMLIT UI
-# =====================
-def main():
-    st.set_page_config(page_title="Clarity - MVP", layout="centered")
-    st.title("📊 Clarity - Self-Growth AI Copilot (MVP)")
+    st.markdown("---")
+    st.caption("Tip: log honestly. Clarity uses real averages to suggest actions.")
 
-    # Navigation
-    menu = ["Log Hours", "View Progress", "Suggestions"]
-    choice = st.sidebar.selectbox("Navigate", menu)
+elif choice == "Weekly Report":
+    st.subheader("Weekly Averages & Target Status")
+    status = check_targets()  # structured dict
+    # Convert to dataframe for nice display
+    rows = []
+    for p, d in status.items():
+        rows.append({"Pillar": p, "Avg hrs/day": d["avg"], "Target hrs/day": d["target"], "Status": d["status"]})
+    df = pd.DataFrame(rows)
+    st.table(df)
 
-    if choice == "Log Hours":
-        st.subheader("Log Daily Hours")
-        pillar = st.selectbox("Select Pillar", list(TARGETS.keys()))
-        hours = st.number_input("Hours Spent", min_value=0.0, max_value=12.0, step=0.5)
-        if st.button("Log Entry"):
-            log_hours(pillar, hours)
-            st.success(f"✅ Logged {hours} hours for {pillar}.")
+    # show bar chart for weekly totals (sum of last 7 days)
+    all_rows = get_all_logs()
+    df_logs = df_from_db_rows(all_rows)
+    if not df_logs.empty:
+        chart_df = df_logs.groupby("pillar")["hours"].sum().reset_index()
+        chart_df.columns = ["Pillar", "Hours (last 7 days)"]
+        st.bar_chart(chart_df.set_index("Pillar"))
 
-    elif choice == "View Progress":
-        st.subheader("Weekly Progress")
-        df = get_weekly_data()
-        if df.empty:
-            st.warning("No data to show yet. Log some hours first.")
-        else:
-            st.dataframe(df)
-            st.bar_chart(df.groupby("pillar")["hours"].sum())
+elif choice == "Suggestions":
+    st.subheader("Actionable Suggestions (Today)")
+    status = check_targets()
+    suggestions_out = generate_suggestions(status)
+    for line in suggestions_out["summary_lines"]:
+        st.markdown(line)
 
-    elif choice == "Suggestions":
-        st.subheader("Actionable Suggestions")
-        df = get_weekly_data()
-        for s in generate_suggestions(df):
-            st.write(s)
+    st.markdown("---")
+    st.write("Structured suggestions (debug):")
+    st.json(suggestions_out["suggestions"])
 
-if __name__ == "__main__":
-    init_db()
-    main()
+elif choice == "View Logs":
+    st.subheader("View All Logs")
+    rows = get_all_logs()
+    df_logs = df_from_db_rows(rows)
+    st.dataframe(df_logs.sort_values(by="date", ascending=False))
+
+    if not df_logs.empty:
+        with st.expander("Show pretty aggregated table"):
+            st.table(df_logs.groupby("pillar")["hours"].sum().rename("Total hrs").reset_index())
+
+# Footer
+st.markdown("---")
+st.caption("Clarity MVP — staged build. Stage 4: UI Integration. Next: Journal Analyzer (Week 2).")
