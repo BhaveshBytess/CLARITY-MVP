@@ -72,10 +72,10 @@ requirements.txt
 ---
 
 ````markdown
-## 🏁 Run Locally (Quickstart)
+## Run Locally (Quickstart)
 
 1. Clone and install:
-```bash
+
 git clone https://github.com/your-username/Clarity-MVP.git
 cd Clarity-MVP
 pip install -r requirements.txt
@@ -108,22 +108,36 @@ streamlit run clarity/ui/app.py
 **Home Screen**
 ![Home Screen](clarity/docs/home_Screen.png)
 
+
+
 **Log Hours**
 ![Goal Tracker](clarity/docs/goal_tracker.png)
 
+
+
 **Weekly Report — table + bar chart**
 ![Weekly Report](clarity/docs/weekly_report.png)
+
 ![Weekly Report](clarity/docs/bar_graph.png)
 
+
+
 **Daily progress vs target & Quick bars**
-![Progress Bars](clarity/docs/progress_bars.png)
+![Progress Bars](clarity/docs/progress_bar.png)
+
+
 
 **Actionable Suggestions**
 ![Suggestions](clarity/docs/suggestions.png)
 
+
+
 **View Logs (raw entries)**
 ![View Logs](clarity/docs/view_logs.png)
+
 ![View Logs](clarity/docs/view_avglogs.png)
+
+
 
 ---
 
